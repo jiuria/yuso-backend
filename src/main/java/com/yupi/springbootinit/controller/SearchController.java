@@ -7,6 +7,7 @@ import com.yupi.springbootinit.common.ErrorCode;
 import com.yupi.springbootinit.common.ResultUtils;
 import com.yupi.springbootinit.exception.BusinessException;
 import com.yupi.springbootinit.exception.ThrowUtils;
+import com.yupi.springbootinit.manager.SearchFacade;
 import com.yupi.springbootinit.model.dto.picture.PictureQueryRequest;
 import com.yupi.springbootinit.model.dto.post.PostQueryRequest;
 import com.yupi.springbootinit.model.dto.search.SearchRequest;
@@ -47,50 +48,16 @@ public class SearchController {
     @Resource
     private PostService postService;
 
+    @Resource
+    private SearchFacade searchFacade;
+
     @PostMapping("/all")
-    public BaseResponse<SearchVO> searchAll(SearchRequest searchRequest, HttpServletRequest request){
-        String searchText = searchRequest.getSearchText();
-
-
-        CompletableFuture<Page<UserVO>> userTask=CompletableFuture.supplyAsync(()->{
-            UserQueryRequest userQueryRequest=new UserQueryRequest();
-            userQueryRequest.setUserName(searchText);
-            Page<UserVO> userVOPage = userService.listUserVOByPage(userQueryRequest);
-//            return userService.listUserVOByPage(userQueryRequest);
-            return userVOPage;
-        });
-
-        CompletableFuture<Page<PostVO>> postTask=CompletableFuture.supplyAsync(()->{
-            PostQueryRequest postQueryRequest=new PostQueryRequest();
-            postQueryRequest.setSearchText(searchText);
-
-            Page<PostVO> postVOPage = postService.listPostVOByPage(postQueryRequest, request);
-            return postVOPage;
-        });
-        CompletableFuture<Page<Picture>> pictureTask=CompletableFuture.supplyAsync(()->{
-            Page<Picture> picturePage = pictureService.searchPicture(searchText, 1, 10);
-            return picturePage;
-
-        });
-
-        CompletableFuture.allOf(userTask,postTask,pictureTask).join();
-        try {
-
-            Page<UserVO> userVOPage=userTask.get();
-            Page<PostVO> postVOPage=postTask.get();
-            Page<Picture> picturePage=pictureTask.get();
-
-            SearchVO searchVO=new SearchVO();
-            searchVO.setPostList(postVOPage.getRecords());
-            searchVO.setUserList(userVOPage.getRecords());
-            searchVO.setPictureList(picturePage.getRecords());
-            return ResultUtils.success(searchVO);
-        }catch (Exception e){
-            log.error("搜索失败",e);
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR,"搜索失败");
+    public BaseResponse<SearchVO> searchAll(@RequestBody SearchRequest searchRequest, HttpServletRequest request) {
+        if (searchRequest.getType()==null) {
+            searchRequest.setType("post");
         }
+        return ResultUtils.success(searchFacade.searchAll(searchRequest, request));
     }
-
 
 
 }
